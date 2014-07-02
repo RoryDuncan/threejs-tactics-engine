@@ -1,0 +1,37 @@
+{
+  "name": "threejs-tactics-engine",
+  "version": "0.0.0",
+  "description": "An engine designed to ease making tactic-styled games",
+  "main": "app.js",
+  "dependencies": {
+    "browserify": "^4.2.0",
+    "watchify": "^0.10.2",
+    "node-simple-router": "^0.9.2-8"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build-css": "sass --update public/sass:public/css",
+    "build-js": "browserify public/javascript/game/browser.js > public/javascript/bundle.js",
+    "watch-all": "sass --watch public/sass:public/css && watchify public/javascript/game > public/javascript/bundle.js",
+    "build": "npm run build-css && npm run build-js",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/RoryDuncan/threejs-tactics-engine.git"
+  },
+  "keywords": [
+    "threejs",
+    "canvas",
+    "html5",
+    "tactics",
+    "engine"
+  ],
+  "author": "Rory Duncan",
+  "license": "Mozilla",
+  "bugs": {
+    "url": "https://github.com/RoryDuncan/threejs-tactics-engine/issues"
+  },
+  "homepage": "https://github.com/RoryDuncan/threejs-tactics-engine"
+}

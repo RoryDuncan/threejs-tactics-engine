@@ -1,0 +1,4 @@
+
+# The build for the browser is require()'d here.
+
+require "./main"
