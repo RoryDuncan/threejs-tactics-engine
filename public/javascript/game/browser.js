@@ -1,5 +1,7 @@
 (function() {
 
+  require("./_base");
+
   require("./main");
 
 }).call(this);

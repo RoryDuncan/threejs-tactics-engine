@@ -1,6 +1,6 @@
 (function() {
 
-  console.log("hello worlt.");
+  console.log("-- main --");
 
 }).call(this);
 

@@ -1,3 +1,3 @@
 
 # 
-console.log("hello worlt.")
+console.log("-- main --")
