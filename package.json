@@ -12,8 +12,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build-css": "sass --update public/sass:public/css",
-    "build-js": "browserify public/javascript/game/browser.js > public/javascript/bundle.js",
-    "watch-js": "watchify ./public/javascript/game/browser.js -o public/javascript/bundle.js -v -d",
+    "build-js": "browserify public/javascript/src/browser.js -o public/javascript/bundle.js",
+    "watch-js": "watchify ./public/javascript/src/browser.js -o public/javascript/bundle.js -v -d",
     "watch-css": "sass --watch public/sass:public/css",
     "watch": " npm run watch-js & npm run watch-js",
     "build": "npm run build-css && npm run build-js",
