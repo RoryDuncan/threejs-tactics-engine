@@ -5,7 +5,22 @@
 
 
 (function() {
-  var __slice = [].slice;
+  var EventEmitter,
+    __slice = [].slice;
+
+  module.exports.log = function(msg) {
+    var prefix;
+    this.logs.unshift(msg);
+    if (!this.debug) {
+      return;
+    }
+    prefix = "Engine :: ";
+    if (typeof msg === "string") {
+      console.log(prefix + msg);
+    } else {
+      console.log(msg);
+    }
+  };
 
   module.exports.extend = function() {
     var base, extended, key, obj, objs, _i, _len;
@@ -23,6 +38,60 @@
     }
     return extended;
   };
+
+  module.exports.isArray = Array.isArray || function(thing) {
+    return Object.prototype.toString.call(thing === "[object Array]");
+  };
+
+  module.exports.getJSON = function(url, callbacks) {
+    var ajax, data, options;
+    options = callbacks || {};
+    data = void 0;
+    ajax = $.getJSON(url);
+    return ajax.complete(function() {
+      try {
+        data = $.parseJSON(ajax.responseText);
+      } catch (e) {
+        options.error.call(options.scope || null, e, ajax);
+        return;
+      }
+      options.success.call(options.scope || null, data, ajax);
+    });
+  };
+
+  module.exports.EventEmitter = EventEmitter = (function() {
+
+    function EventEmitter() {}
+
+    EventEmitter.prototype.events = {};
+
+    EventEmitter.prototype.on = function(name, fn) {
+      this.events[name] = fn;
+      return this;
+    };
+
+    EventEmitter.prototype.off = function(name) {
+      delete this.events[name];
+      return this;
+    };
+
+    EventEmitter.prototype.get = function(name) {
+      return this.events[name];
+    };
+
+    EventEmitter.prototype.trigger = function(name) {
+      var fn;
+      fn = this.get(name);
+      if (fn === void 0) {
+        return;
+      }
+      fn.call();
+      return this;
+    };
+
+    return EventEmitter;
+
+  })();
 
 }).call(this);
 

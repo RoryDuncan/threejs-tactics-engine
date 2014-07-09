@@ -3,9 +3,10 @@
     Modified version from
 
     +-+- GITHUB -+-+
+  unmodified version located at:
     https://github.com/RoryDuncan/ClockEventAggreggator
     
-    +-+- DOCS -+-+
+    +-+- DOCUMENTATION -+-+
     http://roryduncan.github.io/ClockEventAggreggator/
 
   */
@@ -173,7 +174,7 @@ var Clock = function(args) {
           loop.calledAt.push( now );
           loop.now = now;
           
-          loop.fn.apply( loop, loop.args );
+          loop.fn.apply( loop.scope, loop.args );
           
           loop.lastCall = now;
           loop.calls++;
@@ -433,8 +434,9 @@ var Clock = function(args) {
         required = {
           "name":uniqueName,
           "fn": fn,
+          "scope": scope || self,
           "calls": 0,
-          "parent":self,
+          "parent": self,
           "args": args || []
         };
 
@@ -452,7 +454,7 @@ var Clock = function(args) {
             doesIntervalMatchNow = (now - (start + this.startDelay))  % (interval + duration),
             intervalHasPassed = now - (this.lastCall === undefined ? start : this.lastCall);
   
-
+        /*
         console.clear();
         console.log("name:", this.name);
         console.log("Delta:", self.delta );
@@ -462,6 +464,7 @@ var Clock = function(args) {
         console.log("interval:", interval);
         console.log("now:", now);
         console.log("lastCall'ed:", this.lastCall);
+        */
         
         if ( doesIntervalMatchNow >= 0 && doesIntervalMatchNow <= delta && (now - this.lastCall) > (interval*0.99) ) return true;
         else return false;

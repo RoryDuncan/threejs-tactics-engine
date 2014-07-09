@@ -20,18 +20,27 @@
       @PRIVATES
     */
 
-    var THREE, configLoaded, eventMethods, name, _i, _len;
+    var THREE, configLoaded, eventMethods, log, name, scene, that, _i, _len;
     if (self.THREE === void 0 || self.$ === void 0) {
       throw new Error("The engine is dependent on THREE.js and jQuery, which one of was not found, or not in the global scope.");
     }
     THREE = self.THREE;
     configLoaded = false;
+    scene = false;
+    that = this;
+    this.debug = true;
+    this.logs = [];
+    log = (function(msg) {
+      return utils.log.call(this, msg, this.logs);
+    }).bind(this);
+    this.log = log;
     /*
       @PUBLICS
     */
 
     this.load = function() {};
-    this.stage = new Stage();
+    this.renderQueue = [];
+    this.stage = new Stage(this);
     this.clock = new Clock();
     /* 
       Dynamically add event methods from the clock object (which has an event emitter built into it.)
@@ -44,38 +53,43 @@
       name = eventMethods[_i];
       this.events[name] = this.clock[name];
     }
-    this.displayLoading = function() {};
     this.init = function(options) {
-      var config, that;
-      config = $.getJSON((options || {}).config || "json/config.json");
+      var config;
+      config = $.getJSON((options || {}).config);
+      if (typeof config === void 0) {
+        return;
+      }
       that = this;
-      this.displayLoading(config);
       return config.complete(function() {
+        var renderer;
         try {
-          this.config = $.parseJSON(config.responseText);
+          that.config = $.parseJSON(config.responseText);
         } catch (e) {
-          console.log(e);
+          log(e);
           throw new Error("JSON was not parsed.");
         }
         configLoaded = true;
-        console.log("Configuration Loaded.");
-        that.displayLoading();
+        log("Configuration Loaded.");
+        renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+        that.renderer = renderer;
+        log("Initialized.");
         if ((options || {}).autostart === true) {
           return that.start();
         }
       });
     };
     this.start = function() {
-      var camera, renderer, scene;
+      var stage;
       if (!configLoaded) {
         return;
       }
-      scene = new THREE.Scene();
-      camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-      renderer = new THREE.WebGLRenderer();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      document.body.appendChild(renderer.domElement);
-      return this.renderer = renderer;
+      stage = this.stage.create("test", {
+        "url": "json/test.json"
+      });
+      stage.camera = new THREE.PerspectiveCamera(30, window.innerWidth / window.innerHeight, 0.1, 10000);
+      return stage.scene = new THREE.Scene();
     };
     return this;
   };
@@ -83,6 +97,7 @@
   self.Engine = new ThreeTacticsEngine();
 
   Engine.init({
+    "config": "json/config.json",
     "autostart": true
   });
 

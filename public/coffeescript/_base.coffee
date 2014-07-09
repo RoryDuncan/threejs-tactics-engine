@@ -8,6 +8,8 @@ utils = require("./_utils")
 Stage = require("./_stage")
 Clock = require("./_clock")
 
+
+
 ThreeTacticsEngine = () ->
 
 
@@ -21,7 +23,15 @@ ThreeTacticsEngine = () ->
   
   THREE = self.THREE
   configLoaded = false
+  scene = false
+  that = @
+  @debug = true
+  @logs = []
 
+  log = ((msg) ->
+    utils.log.call @, msg, @logs
+  ).bind(@)
+  @log = log
 
   ###
     @PUBLICS
@@ -31,9 +41,13 @@ ThreeTacticsEngine = () ->
   # todo
   @load = () ->
     #
+
+  @renderQueue = []
+
   
-  @stage = new Stage()
+  @stage = new Stage(@)
     #
+
   @clock = new Clock()
 
   ### 
@@ -47,45 +61,44 @@ ThreeTacticsEngine = () ->
   for name in eventMethods
     @events[ name ] = @clock[name]
 
-  # a function to allow the display of 'loading' to the user
-  @displayLoading = () ->
-    #
 
   @init = (options) ->
 
-    config = $.getJSON ( options or {} ).config or "json/config.json"
+    config = $.getJSON ( options or {} ).config
+
+    return if typeof config is undefined
 
     that = @
-
-    @displayLoading( config )
 
     config.complete ->
       
       try
-        @config = $.parseJSON config.responseText
+        that.config = $.parseJSON config.responseText
 
       catch e
-        console.log e
+        log e
         throw new Error "JSON was not parsed."
 
       configLoaded = true
-      console.log "Configuration Loaded."
-      that.displayLoading()
-      that.start() if (options or {}).autostart is true
+      log "Configuration Loaded."
 
+      renderer = new THREE.WebGLRenderer()
+      renderer.setSize( window.innerWidth, window.innerHeight )
+      document.body.appendChild( renderer.domElement )
+      that.renderer = renderer
+
+      log "Initialized."
+
+      that.start() if (options or {}).autostart is true
 
   @start = () ->
     return unless configLoaded
 
-    scene = new THREE.Scene()
-    camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 )
+    stage = @stage.create "test",
+        "url" : "json/test.json"
 
-    renderer = new THREE.WebGLRenderer()
-    renderer.setSize( window.innerWidth, window.innerHeight )
-    document.body.appendChild( renderer.domElement )
-
-    @renderer = renderer
-
+    stage.camera = new THREE.PerspectiveCamera(30, window.innerWidth/window.innerHeight, 0.1, 10000)
+    stage.scene = new THREE.Scene()
 
 
   return @
@@ -95,6 +108,7 @@ ThreeTacticsEngine = () ->
 self.Engine = new ThreeTacticsEngine()
 
 Engine.init
+  "config": "json/config.json"
   "autostart": true
 
 console.log Engine
