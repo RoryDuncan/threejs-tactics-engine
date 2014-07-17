@@ -3,27 +3,38 @@
 
   module.exports.Cube = Cube = (function() {
 
-    function Cube(size, position, material, scene) {
-      var number;
+    function Cube(options, scene) {
+      var number, that;
       this.scene = scene;
-      if (typeof size === "number") {
-        number = size;
+      if (!(options.size && options.position)) {
+        return;
       }
-      this.position = new THREE.Vector3(position.x, position.y, position.z);
-      this.geometry = new THREE.BoxGeometry(number || size.x, number || size.y, number || size.z);
-      if (!material) {
+      if (typeof options.size === "number") {
+        number = options.size;
+      }
+      this.position = new THREE.Vector3(options.position.x, options.position.y, options.position.z);
+      this.geometry = new THREE.BoxGeometry(options.size.x, options.size.y, options.size.z);
+      if (!options.material) {
         this.material = new THREE.MeshBasicMaterial({
-          color: 0x008888,
+          opacity: 0.01,
+          transparent: true,
+          color: 0xffffff,
           wireframe: true
         });
-      } else if (material.id === void 0) {
+      } else if (options.material.id === void 0) {
         this.material = material || new THREE.MeshBasicMaterial({
+          opacity: 0.0,
+          transparent: true,
           color: 0x008888,
           wireframe: false
         });
       }
-      this.cube = new THREE.Mesh(this.geometry, this.material);
-      this.cube.position = this.position;
+      this.mesh = new THREE.Mesh(this.geometry, this.material);
+      this.mesh.position = this.position;
+      this.mesh.wrapper = this;
+      that = this;
+      this.mesh.addEventListener("hover", that.hover);
+      this.mesh.addEventListener("leave", that.leave);
       if (this.scene !== void 0) {
         this.addToScene(this.scene);
       }
@@ -31,7 +42,25 @@
 
     Cube.prototype.addToScene = function(scene) {
       this.scene = scene;
-      return scene.add(this.cube);
+      return scene.add(this.mesh);
+    };
+
+    Cube.prototype.hover = function() {
+      if (this.oldmaterial === void 0) {
+        this.oldmaterial = this.material;
+      }
+      return this.material = this.hovermaterial || new THREE.MeshBasicMaterial({
+        opacity: 0.45,
+        transparent: true,
+        color: 0xffffff,
+        wireframe: true
+      });
+    };
+
+    Cube.prototype.leave = function() {
+      return this.material = this.oldmaterial || new THREE.MeshBasicMaterial({
+        color: 0x008888
+      });
     };
 
     return Cube;

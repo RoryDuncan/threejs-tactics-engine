@@ -28,6 +28,19 @@ module.exports.extend = (objs...) ->
 module.exports.isArray = Array.isArray or (thing) ->
   Object.prototype.toString.call thing is "[object Array]"
 
+module.exports.pythag = 
+window.Math.pythag = (A, B, hypotenuse) ->
+  return unless arguments.length >= 2
+
+  if B is null
+    result = (Math.pow hypotenuse, 2 ) - Math.pow A, 2
+    result = Math.sqrt( result )
+    return result
+  else
+    a2 = Math.pow(A, 2)
+    b2 = Math.pow(B, 2)
+    result = Math.sqrt( a2 + b2 )
+    return result
 
 module.exports.getJSON = (url, callbacks) ->
     options = callbacks or {}
@@ -68,6 +81,7 @@ module.exports.EventEmitter = class EventEmitter
     fn.call()
 
     return @
+
 
 
 

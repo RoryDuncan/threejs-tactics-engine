@@ -43,6 +43,23 @@
     return Object.prototype.toString.call(thing === "[object Array]");
   };
 
+  module.exports.pythag = window.Math.pythag = function(A, B, hypotenuse) {
+    var a2, b2, result;
+    if (!(arguments.length >= 2)) {
+      return;
+    }
+    if (B === null) {
+      result = (Math.pow(hypotenuse, 2)) - Math.pow(A, 2);
+      result = Math.sqrt(result);
+      return result;
+    } else {
+      a2 = Math.pow(A, 2);
+      b2 = Math.pow(B, 2);
+      result = Math.sqrt(a2 + b2);
+      return result;
+    }
+  };
+
   module.exports.getJSON = function(url, callbacks) {
     var ajax, data, options;
     options = callbacks || {};

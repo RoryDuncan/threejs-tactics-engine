@@ -9,7 +9,6 @@ Stage = require("./_stage")
 Clock = require("./_clock")
 
 
-
 ThreeTacticsEngine = () ->
 
 
@@ -82,7 +81,7 @@ ThreeTacticsEngine = () ->
       configLoaded = true
       log "Configuration Loaded."
 
-      renderer = new THREE.WebGLRenderer()
+      renderer = new THREE.WebGLRenderer({antialias: true})
       renderer.setSize( window.innerWidth, window.innerHeight )
       document.body.appendChild( renderer.domElement )
       that.renderer = renderer
@@ -95,10 +94,9 @@ ThreeTacticsEngine = () ->
     return unless configLoaded
 
     stage = @stage.create "test",
-        "url" : "json/test.json"
-
-    stage.camera = new THREE.PerspectiveCamera(30, window.innerWidth/window.innerHeight, 0.1, 10000)
-    stage.scene = new THREE.Scene()
+        "url" : "json/test.json",
+        "camera": new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100000),
+        "scene": new THREE.Scene()
 
 
   return @

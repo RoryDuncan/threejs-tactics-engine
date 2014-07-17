@@ -7,28 +7,50 @@
 ###
 
 utils = require("./_utils")
+Input = require("./_input")
 Cube = require("./_objects").Cube
 
+
+###
+    SelectionGrid Class
+    Helper class for selecting objects / entities from a grid
+    Should be automatically created when 
+###
+
 class SelectionGrid
+
   constructor: (data, engine, stage) ->
-    
+
+    # everything for the selectiongrid should be passed in initially
+    @meshes = []
     @engine = engine
     @stage = stage
     @width = data.width
     @height = data.length
-
+    @padding = data.padding or 2
     @x = data.x
     @y = data.y
+    # helper fn to test if a number is an integer (no trailing decimal values)
+    isInt = (num) ->
+      return true if (num / Math.floor(num) is 1 or num / Math.floor(num) is -1)
+      return false
 
+    ### Convert the data into a normalized grid data  ###
 
-    x0 = (Math.floor(data.x / 2))
-    y0 = (Math.floor(data.y / 2))
-    centerIndex = null
-    x = -1 * x0
-    y = -1 * y0
+    evenOffset = isInt(data.x / 2) ? 0 : 1 # even numbers wont have a perfect grid at 0,0; this fixes that
+    x0 = ~~(data.x / 2)   # the boundery x value in the normalized grid
+    y0 = ~~(data.y / 2)   # the first y value in the normalized grid
+    centerIndex = null    # may be useful to know where the center is, store for later
+    x = -1 * x0           # starting x value before iteration
+    y = -1 * y0           # starting y value before iteration
 
-    hm = data.heightmap.map (el, index, arr) ->
+    # This fancy assignment makes it where you can just make heightmap a single integer value,
+    # and the whole heightmap will be generated at that height
+    hm =  if utils.isArray(data.heightmap) then data.heightmap else (o - o for o in [0...(data.x*data.y)])
 
+    # loop through all the data, making a internal form of data (nodes),
+    # that will be used in @createGrid to make threejs objects
+    data = hm.map (el, index, arr) ->
 
       node = {
         "z": el,
@@ -37,46 +59,48 @@ class SelectionGrid
       }
 
       if x is 0 and y is 0
-        node.center = true
-        centerIndex = index
+        node.center = true # mark that node
+        centerIndex = index # keep a reference, as well
 
-      x++
-
-      if x is x0
+      if x is (x0 - evenOffset)
         x = (-1 * x0) 
         y++
-
-
-
+      else x++
       return node
 
     @centerIndex = centerIndex
-    @data = hm
-    console.log @
+    @data = data
     @createGrid()
 
-  
+  createGrid: () -> # creates the THREEjs objects based on the data loaded
 
-  createGrid: ->
     return if @data is undefined
-    margin = 2
     @objects = [] # a cache of the meshes
 
-    x = 0 # My biggest qualm with coffeescript
-    y = 0 # is keeping track of iterators during for loops..
+    x = 0
+    y = 0
     w = @width
     h = @height
-    padding = 2
+    padding = @padding or 2
 
-    for datum in @data
+    # this iteration should be refactored into
+    #   x, y for x, y in [0..@data.length]
+    # or something
+    for datum in @data 
 
-      @objects.push new Cube(
-        {x: w, y: 1 * w, z: 1},
-        {x: datum.x * (w + padding), y: datum.y * (w + padding), z: datum.z * (h + padding)},
-        null, # no material passed in
-        @stage.scene) # instantly add to the scene
+      # fancy maths to place the cube correctly in a grid
+      size = {x: w, y: w, z: 0}
+      position = {x: datum.x * (w + padding), y: datum.y * (w + padding), z: datum.z * (h + padding)}
+      material = @material # override material
+      scene = @stage.scene
 
-  filterData: (vec3) ->
+      cube = new Cube({size, position, material}, scene)
+
+      @objects.push cube
+      @stage.meshes.push cube.mesh
+
+  filterData: (vec3) -> # helper for getting / filtering, rows, columns, or specific grid nodes.
+
     ###
       argument 'vec3' can be an object or a THREE.Vector3 instance
       ! Vector3 instances don't allow you to have 'undefined' as a value, so using '*' is used
@@ -86,7 +110,6 @@ class SelectionGrid
       ie:   filterData({ x: 2});
     
     ###
-    console.log vec3
     return unless vec3
 
     @data.filter (el, i, arr) ->
@@ -97,25 +120,30 @@ class SelectionGrid
 
 
 
-
-
-
-
 class Stage extends utils.EventEmitter
 
   constructor: (parent, name, options) ->
     
     @parent = parent
+    @renderer = parent.renderer
     @name = name.toLowerCase()
     @scene = options.scene
     camera = options.camera
     @camera = camera
+    @meshes = []
+
+    beforeLoaded = () -> # small items to run before the @onload() fn is called
+      @render()
+      @Input = new Input.Interface(@, parent)
+      # mouse detector needs to be ran after the data has been added to the scene
+      @MouseDetector = new Input.MouseDetection(@, parent)
+      @onload.call(@)
 
     that = @
 
-    that.on "load", that.onload.bind(that)
+    that.on "load", beforeLoaded.bind(that)
 
-    callbacks =
+    callbacks = 
 
       scope: that,
 
@@ -133,50 +161,94 @@ class Stage extends utils.EventEmitter
 
     unless options.url is undefined then utils.getJSON options.url, callbacks
 
+  load: (urlToJson) ->
+    ###
+      incase wasn't originally passed in
+    ###
+    that = @
+    callbacks = 
+      scope: that,
+      success: (responseText) ->
+        that.data = responseText
+        console.log "Engine :: '" + name + "' ajax'd. "
+        that.data.grid = that.grid = new SelectionGrid that.data.grid, that.parent, that
+        that.trigger "load"
+      error: () ->
+        throw new Error "Error retrieving data for Stage"
+
+    unless urlToJson is undefined then utils.getJSON urlToJson, callbacks
+
   onload: () ->
-    @render()
-    return
+    ###
+      meant to be overwritten by the user
+      alternative is: 
+      | @on "load", fn
+      which will be triggered on loading
+
+    ###
+    return @
 
   lookAt: (point) ->
+    @camera.up = new THREE.Vector3 0, 0, 1
     @camera.lookAt point or @scene
 
   setCameraToIsometric: ->
     return unless @grid
-
+    # resource:
+    # http://en.wikipedia.org/wiki/Isometric_projection
+    #
     w = @grid.width
     h = @grid.height
     x = @grid.x
     y = @grid.y
 
-    amt = Math.pow(w * x / 2, 1.35)
-    #amt = 240
-    # have this adjust relative to the size of the map
-    @camera.position.z = amt / 2
-    @camera.position.y = -1 * amt * 1.1
-    @camera.position.x = amt
+    distanceFromCenterofGridToEdge = utils.pythag(w*x, h*y)
+    zDistance = distanceFromCenterofGridToEdge / 2 #utils.pythag(w*x, h*y)
+    yDistance = (w + (@grid.padding or 2)) * x
+    xDistance = (w + (@grid.padding or 2)) * x
 
-    @camera.rotation.x = 1.2
-    @camera.rotation.y = 0.75
-    @camera.rotation.z = 0.25
-
-  render: ->
-    # origin cube
-    geometry = new THREE.BoxGeometry(2,2,20)
-    material = new THREE.MeshBasicMaterial( { color: 0xffffff, } )
-    cube = new THREE.Mesh( geometry, material )
-    @scene.add cube 
-    @setCameraToIsometric()
-
-
+    @camera.position.setZ zDistance
+    @camera.position.setY yDistance
+    @camera.position.setX xDistance
+    @camera.up = new THREE.Vector3 0, 0, 1
+    @camera.lookAt new THREE.Vector3 0,0,0
+    return @
+    ###
     
-    #@.lookAt new THREE.Vector3 0,0,0
+    
+    @camera.rotation.z = 0.25
+    ###
+  render: ->
 
+    # axis lines, to be removed later
+    geometry = new THREE.Geometry()
+    extent = 5000
+    geometry.vertices.push new THREE.Vector3( 0, 0, -extent )
+    geometry.vertices.push new THREE.Vector3( 0, 0, extent )
+
+
+    geometry.vertices.push new THREE.Vector3( -extent, 0, 0 )
+    geometry.vertices.push new THREE.Vector3( extent, 0, 0 )
+  
+
+    geometry.vertices.push new THREE.Vector3( 0, -extent, 0 )
+    geometry.vertices.push new THREE.Vector3( 0, extent, 0 )
+
+    material = new THREE.LineBasicMaterial( { color: 0x555555 } )
+    line = new THREE.Line( geometry, material )
+    @scene.add line
+
+
+
+    @setCameraToIsometric()
+    #@camera.position.setZ(250)
+    #@camera.updateMatrix()
 
     @parent.renderer.render @scene, @camera
 
     L = @parent.clock.loop "render", ->
 
-
+      #camera.position.y += 1
       @parent.renderer.render @scene, @camera
     , null, @
    
