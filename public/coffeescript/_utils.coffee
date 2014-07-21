@@ -28,8 +28,7 @@ module.exports.extend = (objs...) ->
 module.exports.isArray = Array.isArray or (thing) ->
   Object.prototype.toString.call thing is "[object Array]"
 
-module.exports.pythag = 
-window.Math.pythag = (A, B, hypotenuse) ->
+module.exports.pythag = (A, B, hypotenuse) ->
   return unless arguments.length >= 2
 
   if B is null
@@ -55,6 +54,17 @@ module.exports.getJSON = (url, callbacks) ->
         return
       options.success.call(options.scope or null, data, ajax)
       return
+
+module.exports.getMousePosition = ($e) ->
+  return unless $e.type is "click" or $e.type is "mousemove"
+
+  x = $e.clientX
+  y = $e.clientY
+  normalized =
+    "x": ( x / window.innerWidth )    * 2 - 1,
+    "y": - ( y / window.innerHeight ) * 2 + 1
+
+  return {x, y, normalized}
 
 module.exports.EventEmitter = class EventEmitter
 

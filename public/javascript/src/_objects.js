@@ -1,9 +1,9 @@
 (function() {
-  var Cube, Skybox, _class;
+  var Selector, Skybox, _class;
 
-  module.exports.Cube = Cube = (function() {
+  module.exports.Selector = Selector = (function() {
 
-    function Cube(options, scene) {
+    function Selector(options, scene) {
       var number, that;
       this.scene = scene;
       if (!(options.size && options.position)) {
@@ -14,6 +14,7 @@
       }
       this.position = new THREE.Vector3(options.position.x, options.position.y, options.position.z);
       this.geometry = new THREE.BoxGeometry(options.size.x, options.size.y, options.size.z);
+      this.isSelected = false;
       if (!options.material) {
         this.material = new THREE.MeshBasicMaterial({
           opacity: 0.01,
@@ -35,35 +36,63 @@
       that = this;
       this.mesh.addEventListener("hover", that.hover);
       this.mesh.addEventListener("leave", that.leave);
+      this.mesh.addEventListener("click", that.click);
+      this.mesh.addEventListener("clear", that.clear);
       if (this.scene !== void 0) {
         this.addToScene(this.scene);
       }
     }
 
-    Cube.prototype.addToScene = function(scene) {
+    Selector.prototype.addToScene = function(scene) {
       this.scene = scene;
       return scene.add(this.mesh);
     };
 
-    Cube.prototype.hover = function() {
+    Selector.prototype.hover = function() {
+      if (this.isSelected === true) {
+        return;
+      }
       if (this.oldmaterial === void 0) {
         this.oldmaterial = this.material;
       }
       return this.material = this.hovermaterial || new THREE.MeshBasicMaterial({
         opacity: 0.45,
         transparent: true,
-        color: 0xffffff,
+        color: 0x00aa88,
         wireframe: true
       });
     };
 
-    Cube.prototype.leave = function() {
+    Selector.prototype.leave = function() {
+      if (this.isSelected) {
+
+      } else {
+        return this.material = this.oldmaterial || new THREE.MeshBasicMaterial({
+          color: 0x00aa88
+        });
+      }
+    };
+
+    Selector.prototype.click = function() {
+      this.isSelected = !this.isSelected;
+      if (this.isSelected) {
+        return this.material = this.selectedmaterial || new THREE.MeshBasicMaterial({
+          color: 0xffffff,
+          wireframe: true
+        });
+      } else {
+        return this.material = this.oldmaterial;
+      }
+    };
+
+    Selector.prototype.clear = function() {
+      this.isSelected = false;
       return this.material = this.oldmaterial || new THREE.MeshBasicMaterial({
         color: 0x008888
       });
     };
 
-    return Cube;
+    return Selector;
 
   })();
 

@@ -121,34 +121,25 @@
     handler = function(e) {
       var b, keyname;
       e.preventDefault();
+      e.position = utils.getMousePosition(e);
       b = bound[e.type];
       if (!b) {
         return;
       }
       for (keyname in b) {
         if (key[keyname] === e.which) {
-          b[keyname].callback.call(b[keyname], b[keyname].data);
+          b[keyname].callback.call(b[keyname], e, b[keyname].data);
           return;
         }
       }
     };
     mousemoveHandler = function(e) {
-      var b, data, mouse, normalized, x, y;
+      var b, data;
       e.preventDefault();
-      x = e.clientX;
-      y = e.clientY;
-      normalized = {
-        "x": (x / window.innerWidth) * 2 - 1,
-        "y": -(y / window.innerHeight) * 2 + 1
-      };
+      e.position = utils.getMousePosition(e);
       b = bound["mousemove"];
       data = b.data || {};
-      mouse = {
-        x: x,
-        y: y,
-        normalized: normalized
-      };
-      b.callback.call(parent, mouse, data, e);
+      b.callback.call(parent, e, data);
     };
     this.bind = this.on = function(events, keyname, callback, data) {
       var b, eventType, _events, _i, _len;
@@ -191,40 +182,123 @@
     return this;
   };
 
-  module.exports.MouseDetection = function(parent, engine) {
-    var camera, enabled, handler, input, lastIntersection, projector, stage, that;
+  module.exports.MouseDetection = function(parent, engine, multiselect, clearAfterEmptySelection) {
+    var camera, clickHandler, enabled, getIntersections, handler, input, lastClickIntersect, lastHoverIntersect, mousemoveHandler, projector, selectedObjects, stage, that;
+    if (multiselect == null) {
+      multiselect = true;
+    }
+    if (clearAfterEmptySelection == null) {
+      clearAfterEmptySelection = true;
+    }
     enabled = false;
     stage = parent;
     input = parent.Input;
     camera = parent.camera;
     projector = new THREE.Projector();
     this.intersections = null;
-    lastIntersection = null;
+    lastHoverIntersect = null;
+    lastClickIntersect = null;
+    selectedObjects = [];
     that = this;
-    handler = function(mouse, camera) {
-      var direction, intersect, raycaster, vector;
+    this.mousemove = true;
+    this.click = true;
+    this.multiselect = multiselect;
+    this.clearAfterEmptySelection = clearAfterEmptySelection;
+    getIntersections = function(mouse, camera) {
+      var direction, intersections, raycaster, vector;
       vector = new THREE.Vector3(mouse.normalized.x, mouse.normalized.y, 1);
       projector.unprojectVector(vector, camera);
       direction = vector.sub(camera.position).normalize();
       raycaster = new THREE.Raycaster(camera.position, direction);
-      that.intersections = raycaster.intersectObjects(stage.meshes);
-      if (!that.intersections.length) {
+      intersections = raycaster.intersectObjects(stage.meshes);
+      return intersections;
+    };
+    handler = function(e, camera) {
+      var intersections, mouse;
+      mouse = e.position;
+      intersections = getIntersections(mouse, camera);
+      if (e.type === "mousemove") {
+        if (that.mousemove !== true) {
+          return;
+        }
+        mousemoveHandler(intersections, mouse, camera, e);
+      } else if (e.type === "click") {
+        if (that.click !== true) {
+          return;
+        }
+        clickHandler(intersections, mouse, camera, e);
+      }
+      return e;
+    };
+    mousemoveHandler = function(intersections, mouse, camera, e) {
+      var intersect;
+      if (intersections.length === 0) {
+        if (lastHoverIntersect === null) {
+          return;
+        }
+        lastHoverIntersect.dispatchEvent({
+          type: "leave"
+        });
+        lastHoverIntersect = null;
         return;
       }
-      intersect = that.intersections[0].object;
+      intersect = intersections[0].object;
       intersect.dispatchEvent({
         type: "hover"
       });
-      if (lastIntersection === null) {
-        return lastIntersection = intersect;
-      } else if (lastIntersection !== intersect) {
-        lastIntersection.dispatchEvent({
+      if (lastHoverIntersect === null) {
+        return lastHoverIntersect = intersect;
+      } else if (lastHoverIntersect !== intersect) {
+        lastHoverIntersect.dispatchEvent({
           type: "leave"
         });
-        return lastIntersection = intersect;
+        return lastHoverIntersect = intersect;
       }
     };
-    this.detect = function(eventType) {};
+    clickHandler = function(intersections, mouse, camera, e) {
+      /* deal with things that weren't selected
+      */
+
+      var intersect;
+      if (intersections.length === 0) {
+        if (lastClickIntersect === null) {
+          return;
+        }
+        if (that.clearAfterEmptySelection !== true) {
+          return;
+        }
+        if (that.multiselect !== true) {
+          return;
+        }
+        selectedObjects.forEach(function(el) {
+          return el.dispatchEvent({
+            type: "clear"
+          });
+        });
+        selectedObjects = [];
+        return;
+      }
+      intersect = intersections[0].object;
+      intersect.dispatchEvent({
+        type: "click"
+      });
+      if (lastClickIntersect === null) {
+        lastClickIntersect = intersect;
+        if (that.multiselect !== true) {
+          return;
+        }
+        selectedObjects.push(intersect);
+      } else if (lastClickIntersect !== intersect) {
+        lastClickIntersect.dispatchEvent({
+          type: "leave"
+        });
+        lastClickIntersect = intersect;
+        if (that.multiselect !== true) {
+          return;
+        }
+        selectedObjects.push(intersect);
+      }
+    };
     this.toggle = function() {
       if (enabled) {
         return this.disable();
@@ -232,19 +306,21 @@
         return this.enable();
       }
     };
-    this.disable = function() {
+    this.off = function() {
       if (enabled) {
         enabled = false;
         input.off("mousemove", handler, camera);
+        input.off("click", handler, camera);
       }
     };
-    this.enable = function() {
+    this.on = function() {
       if (!enabled) {
         enabled = true;
-        return input.on("mousemove", handler, camera);
+        input.on("mousemove", handler, camera);
+        input.on("click", "leftClick", handler, camera);
       }
     };
-    this.enable();
+    this.on();
     return this;
   };
 

@@ -8,7 +8,7 @@
 
 
 (function() {
-  var Cube, Input, SelectionGrid, Stage, StageManager, utils,
+  var Input, SelectionGrid, Selector, Stage, StageManager, utils,
     __hasProp = {}.hasOwnProperty,
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
@@ -16,7 +16,7 @@
 
   Input = require("./_input");
 
-  Cube = require("./_objects").Cube;
+  Selector = require("./_objects").Selector;
 
   /*
       SelectionGrid Class
@@ -113,7 +113,7 @@
         };
         material = this.material;
         scene = this.stage.scene;
-        cube = new Cube({
+        cube = new Selector({
           size: size,
           position: position,
           material: material

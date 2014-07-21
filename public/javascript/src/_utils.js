@@ -43,7 +43,7 @@
     return Object.prototype.toString.call(thing === "[object Array]");
   };
 
-  module.exports.pythag = window.Math.pythag = function(A, B, hypotenuse) {
+  module.exports.pythag = function(A, B, hypotenuse) {
     var a2, b2, result;
     if (!(arguments.length >= 2)) {
       return;
@@ -74,6 +74,24 @@
       }
       options.success.call(options.scope || null, data, ajax);
     });
+  };
+
+  module.exports.getMousePosition = function($e) {
+    var normalized, x, y;
+    if (!($e.type === "click" || $e.type === "mousemove")) {
+      return;
+    }
+    x = $e.clientX;
+    y = $e.clientY;
+    normalized = {
+      "x": (x / window.innerWidth) * 2 - 1,
+      "y": -(y / window.innerHeight) * 2 + 1
+    };
+    return {
+      x: x,
+      y: y,
+      normalized: normalized
+    };
   };
 
   module.exports.EventEmitter = EventEmitter = (function() {

@@ -8,7 +8,7 @@
 
 utils = require("./_utils")
 Input = require("./_input")
-Cube = require("./_objects").Cube
+Selector = require("./_objects").Selector
 
 
 ###
@@ -94,7 +94,7 @@ class SelectionGrid
       material = @material # override material
       scene = @stage.scene
 
-      cube = new Cube({size, position, material}, scene)
+      cube = new Selector({size, position, material}, scene)
 
       @objects.push cube
       @stage.meshes.push cube.mesh
