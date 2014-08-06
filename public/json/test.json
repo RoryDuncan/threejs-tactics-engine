@@ -4,9 +4,9 @@
 		"width" : 20,
 		"padding": 2,
 		"length": 20,
-		"x" : 11, 
-		"y" : 11,
-		"heightmap" : -1
+		"x" : 21, 
+		"z" : 21,
+		"heightmap" : 0
 	}
 
 }

@@ -7,8 +7,6 @@
 (function() {
   var Clock, Stage, ThreeTacticsEngine, utils;
 
-  console.log("_base");
-
   utils = require("./_utils");
 
   Stage = require("./_stage");

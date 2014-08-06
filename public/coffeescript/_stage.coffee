@@ -17,54 +17,57 @@ Selector = require("./_objects").Selector
     Should be automatically created when 
 ###
 
-class SelectionGrid
+class SelectionGrid extends utils.EventEmitter
 
   constructor: (data, engine, stage) ->
 
     # everything for the selectiongrid should be passed in initially
-    @meshes = []
     @engine = engine
     @stage = stage
     @width = data.width
     @height = data.length
     @padding = data.padding or 2
     @x = data.x
-    @y = data.y
+    @z = data.z
+
+    @on "click", (selector) ->
+      @displayRange(selector, 5)
+    , @
+
     # helper fn to test if a number is an integer (no trailing decimal values)
-    isInt = (num) ->
-      return true if (num / Math.floor(num) is 1 or num / Math.floor(num) is -1)
-      return false
+
 
     ### Convert the data into a normalized grid data  ###
 
-    evenOffset = isInt(data.x / 2) ? 0 : 1 # even numbers wont have a perfect grid at 0,0; this fixes that
+    evenOffset = utils.isInt(data.x / 2) ? 0 : 1 # even numbers wont have a perfect grid at 0,0; this fixes that
     x0 = ~~(data.x / 2)   # the boundery x value in the normalized grid
-    y0 = ~~(data.y / 2)   # the first y value in the normalized grid
+    z0 = ~~(data.z / 2)   # the first z value in the normalized grid
     centerIndex = null    # may be useful to know where the center is, store for later
     x = -1 * x0           # starting x value before iteration
-    y = -1 * y0           # starting y value before iteration
+    z = -1 * z0           # starting z value before iteration
 
     # This fancy assignment makes it where you can just make heightmap a single integer value,
     # and the whole heightmap will be generated at that height
-    hm =  if utils.isArray(data.heightmap) then data.heightmap else (o - o for o in [0...(data.x*data.y)])
+    hm =  if utils.isArray(data.heightmap) then data.heightmap else (data.heightmap for o in [1..(data.x*data.z)])
 
     # loop through all the data, making a internal form of data (nodes),
     # that will be used in @createGrid to make threejs objects
     data = hm.map (el, index, arr) ->
 
       node = {
-        "z": el,
+        "z": z,
         "x": x,
-        "y": y
+        "y": el,
+        "id": index
       }
 
-      if x is 0 and y is 0
+      if x is 0 and z is 0
         node.center = true # mark that node
         centerIndex = index # keep a reference, as well
 
       if x is (x0 - evenOffset)
-        x = (-1 * x0) 
-        y++
+        x = (-1 * x0)
+        z += 1
       else x++
       return node
 
@@ -72,13 +75,11 @@ class SelectionGrid
     @data = data
     @createGrid()
 
-  createGrid: () -> # creates the THREEjs objects based on the data loaded
+  createGrid: (showHelper = true) -> # creates the THREEjs objects based on the data loaded
 
     return if @data is undefined
-    @objects = [] # a cache of the meshes
+    @selectors = [] # a cache of the meshes
 
-    x = 0
-    y = 0
     w = @width
     h = @height
     padding = @padding or 2
@@ -86,20 +87,29 @@ class SelectionGrid
     # this iteration should be refactored into
     #   x, y for x, y in [0..@data.length]
     # or something
+    parent = @
     for datum in @data 
 
       # fancy maths to place the cube correctly in a grid
-      size = {x: w, y: w, z: 0}
-      position = {x: datum.x * (w + padding), y: datum.y * (w + padding), z: datum.z * (h + padding)}
+      size = { x: w, y: 0, z: w }
+      position = {x: datum.x * (w + padding), y: datum.y * (h + padding), z: datum.z * (w + padding)}
       material = @material # override material
       scene = @stage.scene
 
-      cube = new Selector({size, position, material}, scene)
+      selector = new Selector({parent, size, position, material}, scene)
+      # one-to-one
 
-      @objects.push cube
-      @stage.meshes.push cube.mesh
+      datum.selector = selector
+      selector.datum = datum
+      # internal list
+      @selectors.push selector
+      # used for ray tracing
+      @stage.meshes.push selector.mesh 
 
-  filterData: (vec3) -> # helper for getting / filtering, rows, columns, or specific grid nodes.
+    @helper.grid.call(@, showHelper )
+
+  # helper for getting / filtering, rows, columns, or specific grid nodes.
+  filterData: (vec3) ->
 
     ###
       argument 'vec3' can be an object or a THREE.Vector3 instance
@@ -112,13 +122,70 @@ class SelectionGrid
     ###
     return unless vec3
 
-    @data.filter (el, i, arr) ->
+    results = []
+
+    results = results.concat @data.filter (el, i, arr) ->
       if el.x is vec3.x or vec3.x is "*" or vec3.x is undefined
         if el.y is vec3.y or vec3.y is "*" or vec3.y is undefined
           if el.z is vec3.z or vec3.z is "*" or vec3.z is undefined
             return el
 
+    return results
 
+  getRange: (vec3, steps = 4) ->
+
+    getStepCount = utils.steps
+    results = []
+
+    for x in @data
+      count = getStepCount(vec3, x)
+      if count < steps + 1
+        results.push(x)
+
+    return results
+
+  getRangeFromSelector: (selector, steps) ->
+    return unless selector instanceof Selector
+    @getRange selector.datum, steps
+
+  displayRange: (selector, steps, clearOtherRanges = true) ->
+
+    return unless selector instanceof Selector
+
+    @clearAllRanges() if clearOtherRanges
+    selectors = @getRangeFromSelector selector, steps
+
+    selectors.forEach (el) ->
+      el.selector.changeMaterialState.call(el.selector, "range", true)
+
+  clearAllRanges: () ->
+
+    type = "default"
+    @selectors.forEach (el) ->
+      el.resetMaterial.call(el, type)
+
+  helper: {
+
+    grid: ( remove = false) ->
+      # todo: enabling / disabling
+      console.log @
+
+      padding = @padding
+      width = @width
+
+      size = (( width + padding ) * @x) / 2
+      step =  (size * 2)  / ( width + (padding / 2))
+      grid = new THREE.GridHelper( size, step )
+      @_helpergrid = grid
+
+      grid.setColors("#224", "#224")
+
+      @stage.scene.add grid
+      return grid
+
+    range: () ->
+
+  }
 
 class Stage extends utils.EventEmitter
 
@@ -128,6 +195,7 @@ class Stage extends utils.EventEmitter
     @renderer = parent.renderer
     @name = name.toLowerCase()
     @scene = options.scene
+
     camera = options.camera
     @camera = camera
     @meshes = []
@@ -200,17 +268,16 @@ class Stage extends utils.EventEmitter
     w = @grid.width
     h = @grid.height
     x = @grid.x
-    y = @grid.y
+    z = @grid.z
 
-    distanceFromCenterofGridToEdge = utils.pythag(w*x, h*y)
-    zDistance = distanceFromCenterofGridToEdge / 2 #utils.pythag(w*x, h*y)
-    yDistance = (w + (@grid.padding or 2)) * x
+    distanceFromCenterofGridToEdge = utils.pythag(w*x, h*z)
+    yDistance = distanceFromCenterofGridToEdge / 2
+    zDistance = (w + (@grid.padding or 2)) * z
     xDistance = (w + (@grid.padding or 2)) * x
 
     @camera.position.setZ zDistance
     @camera.position.setY yDistance
     @camera.position.setX xDistance
-    @camera.up = new THREE.Vector3 0, 0, 1
     @camera.lookAt new THREE.Vector3 0,0,0
     return @
     ###
@@ -218,6 +285,7 @@ class Stage extends utils.EventEmitter
     
     @camera.rotation.z = 0.25
     ###
+
   render: ->
 
     # axis lines, to be removed later
@@ -241,8 +309,7 @@ class Stage extends utils.EventEmitter
 
 
     @setCameraToIsometric()
-    #@camera.position.setZ(250)
-    #@camera.updateMatrix()
+
 
     @parent.renderer.render @scene, @camera
 
@@ -255,7 +322,6 @@ class Stage extends utils.EventEmitter
     L.for({interval: 17})
 
     @parent.clock.start()
-
 
   destroy: () ->
       @parent.destroy @name

@@ -183,7 +183,7 @@ module.exports.Interface = (canvas, parent, engine) ->
   return @
 
 
-module.exports.MouseDetection = (parent, engine, multiselect = true, clearAfterEmptySelection = true) ->
+module.exports.MouseDetection = (parent, engine, multiselect = false, clearAfterEmptySelection = false) ->
 
   enabled = false
   stage = parent
@@ -202,9 +202,8 @@ module.exports.MouseDetection = (parent, engine, multiselect = true, clearAfterE
   @multiselect = multiselect
   @clearAfterEmptySelection = clearAfterEmptySelection
 
-  # function
   # Use a raycaster to retrieve any intersections
-  getIntersections = (mouse, camera) ->
+  @getIntersections = (mouse, camera) ->
 
     vector = new THREE.Vector3 mouse.normalized.x, mouse.normalized.y, 1
     
@@ -221,7 +220,7 @@ module.exports.MouseDetection = (parent, engine, multiselect = true, clearAfterE
 
     # our Input Interface's handler automatically assigns 'position' to any jquery click or mousemove event
     mouse = e.position
-    intersections = getIntersections(mouse, camera)
+    intersections = that.getIntersections(mouse, camera)
 
     if e.type is "mousemove"
 
@@ -252,7 +251,7 @@ module.exports.MouseDetection = (parent, engine, multiselect = true, clearAfterE
       lastHoverIntersect = intersect
     else if lastHoverIntersect isnt intersect
 
-      lastHoverIntersect.dispatchEvent({type:"leave"})
+      lastHoverIntersect.dispatchEvent {type:"leave"}
       lastHoverIntersect = intersect
 
   clickHandler = (intersections, mouse, camera, e) ->
@@ -263,37 +262,45 @@ module.exports.MouseDetection = (parent, engine, multiselect = true, clearAfterE
       if lastClickIntersect is null # no previous selections
         return
 
-      return unless that.clearAfterEmptySelection is true
-      return unless that.multiselect is true
-      selectedObjects.forEach (el) ->
-        el.dispatchEvent {type:"clear"}
-      selectedObjects = []
+      return if that.clearAfterEmptySelection is false
+      
+      that.clear()
       return
+      
 
     intersect = intersections[0].object
-    intersect.dispatchEvent({type:"click"})
+    intersect.dispatchEvent {type:"click"}
     
     if lastClickIntersect is null
 
       lastClickIntersect = intersect
-      return unless that.multiselect is true
       selectedObjects.push intersect
 
     else if lastClickIntersect isnt intersect
 
-      lastClickIntersect.dispatchEvent({type:"leave"})
+      if that.multiselect is false
+        lastClickIntersect.dispatchEvent {type:"clear"}
+
       lastClickIntersect = intersect
-      return unless that.multiselect is true
       selectedObjects.push intersect
 
     return
 
+  @clear = () ->
+    # if @clearOnEmptySelection is false, @clear will not trigger in this engine's default setup
+    selectedObjects.forEach (el) ->
+      el.dispatchEvent {type:"clear"}
+    selectedObjects = []
+    return @
+
   @toggle = ->
+
     if enabled
       @disable()
     else @enable()
 
   @off = ->
+
     if enabled
       enabled = false
       input.off "mousemove", handler, camera
@@ -302,6 +309,7 @@ module.exports.MouseDetection = (parent, engine, multiselect = true, clearAfterE
     return
 
   @on = ->
+
     if not enabled
       enabled = true
       input.on "mousemove", handler, camera
@@ -309,6 +317,6 @@ module.exports.MouseDetection = (parent, engine, multiselect = true, clearAfterE
 
     return
 
-  @on()
+  @on() #initialize initially
 
   return @

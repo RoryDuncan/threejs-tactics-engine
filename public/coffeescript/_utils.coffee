@@ -28,6 +28,10 @@ module.exports.extend = (objs...) ->
 module.exports.isArray = Array.isArray or (thing) ->
   Object.prototype.toString.call thing is "[object Array]"
 
+module.exports.isInt = (num) ->
+  return true if (num / Math.floor(num) is 1 or num / Math.floor(num) is -1)
+  return false
+
 module.exports.pythag = (A, B, hypotenuse) ->
   return unless arguments.length >= 2
 
@@ -40,6 +44,13 @@ module.exports.pythag = (A, B, hypotenuse) ->
     b2 = Math.pow(B, 2)
     result = Math.sqrt( a2 + b2 )
     return result
+
+module.exports.steps = (base, target, yAxis = false) ->
+  # data items just need x, y, and z coords
+  x = Math.abs( base.x - target.x )
+  z = Math.abs( base.z - target.z )
+  y = if yAxis then Math.abs(base.y - target.y) else 0
+  return x + y + z
 
 module.exports.getJSON = (url, callbacks) ->
     options = callbacks or {}
@@ -58,40 +69,40 @@ module.exports.getJSON = (url, callbacks) ->
 module.exports.getMousePosition = ($e) ->
   return unless $e.type is "click" or $e.type is "mousemove"
 
+
   x = $e.clientX
   y = $e.clientY
   normalized =
     "x": ( x / window.innerWidth )    * 2 - 1,
     "y": - ( y / window.innerHeight ) * 2 + 1
-
   return {x, y, normalized}
 
 module.exports.EventEmitter = class EventEmitter
 
-  constructor: () ->
-    #
+  constructor: () -> 
+    @__events = {}    
 
-  events: {}
-
-  on: (name, fn) ->
-    @events[name] = fn
+  on: (name, fn, context) ->
+    @__events = {} if @__events is undefined
+    @__events[name] = {fn, context}
     return @
 
   off: (name) ->
-    delete @events[name]
+    delete @__events[name]
     return @
 
   get: (name) ->
-    return @events[name]
+    return if @__events is undefined
+    return @__events[name]
 
-  trigger: (name) ->
-    fn = @get name
-    return unless fn isnt undefined
+  trigger: (name, args = []) ->
+    return if @__events is undefined
+    f = @get name
+    return unless f isnt undefined
 
-    fn.call()
+    f.fn.apply(f.context, args)
 
     return @
-
 
 
 

@@ -183,12 +183,12 @@
   };
 
   module.exports.MouseDetection = function(parent, engine, multiselect, clearAfterEmptySelection) {
-    var camera, clickHandler, enabled, getIntersections, handler, input, lastClickIntersect, lastHoverIntersect, mousemoveHandler, projector, selectedObjects, stage, that;
+    var camera, clickHandler, enabled, handler, input, lastClickIntersect, lastHoverIntersect, mousemoveHandler, projector, selectedObjects, stage, that;
     if (multiselect == null) {
-      multiselect = true;
+      multiselect = false;
     }
     if (clearAfterEmptySelection == null) {
-      clearAfterEmptySelection = true;
+      clearAfterEmptySelection = false;
     }
     enabled = false;
     stage = parent;
@@ -204,7 +204,7 @@
     this.click = true;
     this.multiselect = multiselect;
     this.clearAfterEmptySelection = clearAfterEmptySelection;
-    getIntersections = function(mouse, camera) {
+    this.getIntersections = function(mouse, camera) {
       var direction, intersections, raycaster, vector;
       vector = new THREE.Vector3(mouse.normalized.x, mouse.normalized.y, 1);
       projector.unprojectVector(vector, camera);
@@ -216,7 +216,7 @@
     handler = function(e, camera) {
       var intersections, mouse;
       mouse = e.position;
-      intersections = getIntersections(mouse, camera);
+      intersections = that.getIntersections(mouse, camera);
       if (e.type === "mousemove") {
         if (that.mousemove !== true) {
           return;
@@ -264,18 +264,10 @@
         if (lastClickIntersect === null) {
           return;
         }
-        if (that.clearAfterEmptySelection !== true) {
+        if (that.clearAfterEmptySelection === false) {
           return;
         }
-        if (that.multiselect !== true) {
-          return;
-        }
-        selectedObjects.forEach(function(el) {
-          return el.dispatchEvent({
-            type: "clear"
-          });
-        });
-        selectedObjects = [];
+        that.clear();
         return;
       }
       intersect = intersections[0].object;
@@ -284,20 +276,25 @@
       });
       if (lastClickIntersect === null) {
         lastClickIntersect = intersect;
-        if (that.multiselect !== true) {
-          return;
-        }
         selectedObjects.push(intersect);
       } else if (lastClickIntersect !== intersect) {
-        lastClickIntersect.dispatchEvent({
-          type: "leave"
-        });
-        lastClickIntersect = intersect;
-        if (that.multiselect !== true) {
-          return;
+        if (that.multiselect === false) {
+          lastClickIntersect.dispatchEvent({
+            type: "clear"
+          });
         }
+        lastClickIntersect = intersect;
         selectedObjects.push(intersect);
       }
+    };
+    this.clear = function() {
+      selectedObjects.forEach(function(el) {
+        return el.dispatchEvent({
+          type: "clear"
+        });
+      });
+      selectedObjects = [];
+      return this;
     };
     this.toggle = function() {
       if (enabled) {

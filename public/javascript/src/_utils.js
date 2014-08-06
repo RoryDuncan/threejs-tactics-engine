@@ -43,6 +43,13 @@
     return Object.prototype.toString.call(thing === "[object Array]");
   };
 
+  module.exports.isInt = function(num) {
+    if (num / Math.floor(num) === 1 || num / Math.floor(num) === -1) {
+      return true;
+    }
+    return false;
+  };
+
   module.exports.pythag = function(A, B, hypotenuse) {
     var a2, b2, result;
     if (!(arguments.length >= 2)) {
@@ -58,6 +65,17 @@
       result = Math.sqrt(a2 + b2);
       return result;
     }
+  };
+
+  module.exports.steps = function(base, target, yAxis) {
+    var x, y, z;
+    if (yAxis == null) {
+      yAxis = false;
+    }
+    x = Math.abs(base.x - target.x);
+    z = Math.abs(base.z - target.z);
+    y = yAxis ? Math.abs(base.y - target.y) : 0;
+    return x + y + z;
   };
 
   module.exports.getJSON = function(url, callbacks) {
@@ -96,31 +114,46 @@
 
   module.exports.EventEmitter = EventEmitter = (function() {
 
-    function EventEmitter() {}
+    function EventEmitter() {
+      this.__events = {};
+    }
 
-    EventEmitter.prototype.events = {};
-
-    EventEmitter.prototype.on = function(name, fn) {
-      this.events[name] = fn;
+    EventEmitter.prototype.on = function(name, fn, context) {
+      if (this.__events === void 0) {
+        this.__events = {};
+      }
+      this.__events[name] = {
+        fn: fn,
+        context: context
+      };
       return this;
     };
 
     EventEmitter.prototype.off = function(name) {
-      delete this.events[name];
+      delete this.__events[name];
       return this;
     };
 
     EventEmitter.prototype.get = function(name) {
-      return this.events[name];
-    };
-
-    EventEmitter.prototype.trigger = function(name) {
-      var fn;
-      fn = this.get(name);
-      if (fn === void 0) {
+      if (this.__events === void 0) {
         return;
       }
-      fn.call();
+      return this.__events[name];
+    };
+
+    EventEmitter.prototype.trigger = function(name, args) {
+      var f;
+      if (args == null) {
+        args = [];
+      }
+      if (this.__events === void 0) {
+        return;
+      }
+      f = this.get(name);
+      if (f === void 0) {
+        return;
+      }
+      f.fn.apply(f.context, args);
       return this;
     };
 

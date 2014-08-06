@@ -25,57 +25,56 @@
   */
 
 
-  SelectionGrid = (function() {
+  SelectionGrid = (function(_super) {
+
+    __extends(SelectionGrid, _super);
 
     function SelectionGrid(data, engine, stage) {
-      var centerIndex, evenOffset, hm, isInt, o, x, x0, y, y0, _ref;
-      this.meshes = [];
+      var centerIndex, evenOffset, hm, o, x, x0, z, z0, _ref;
       this.engine = engine;
       this.stage = stage;
       this.width = data.width;
       this.height = data.length;
       this.padding = data.padding || 2;
       this.x = data.x;
-      this.y = data.y;
-      isInt = function(num) {
-        if (num / Math.floor(num) === 1 || num / Math.floor(num) === -1) {
-          return true;
-        }
-        return false;
-      };
+      this.z = data.z;
+      this.on("click", function(selector) {
+        return this.displayRange(selector, 5);
+      }, this);
       /* Convert the data into a normalized grid data
       */
 
-      evenOffset = (_ref = isInt(data.x / 2)) != null ? _ref : {
+      evenOffset = (_ref = utils.isInt(data.x / 2)) != null ? _ref : {
         0: 1
       };
       x0 = ~~(data.x / 2);
-      y0 = ~~(data.y / 2);
+      z0 = ~~(data.z / 2);
       centerIndex = null;
       x = -1 * x0;
-      y = -1 * y0;
+      z = -1 * z0;
       hm = utils.isArray(data.heightmap) ? data.heightmap : (function() {
         var _i, _ref1, _results;
         _results = [];
-        for (o = _i = 0, _ref1 = data.x * data.y; 0 <= _ref1 ? _i < _ref1 : _i > _ref1; o = 0 <= _ref1 ? ++_i : --_i) {
-          _results.push(o - o);
+        for (o = _i = 1, _ref1 = data.x * data.z; 1 <= _ref1 ? _i <= _ref1 : _i >= _ref1; o = 1 <= _ref1 ? ++_i : --_i) {
+          _results.push(data.heightmap);
         }
         return _results;
       })();
       data = hm.map(function(el, index, arr) {
         var node;
         node = {
-          "z": el,
+          "z": z,
           "x": x,
-          "y": y
+          "y": el,
+          "id": index
         };
-        if (x === 0 && y === 0) {
+        if (x === 0 && z === 0) {
           node.center = true;
           centerIndex = index;
         }
         if (x === (x0 - evenOffset)) {
           x = -1 * x0;
-          y++;
+          z += 1;
         } else {
           x++;
         }
@@ -86,42 +85,46 @@
       this.createGrid();
     }
 
-    SelectionGrid.prototype.createGrid = function() {
-      var cube, datum, h, material, padding, position, scene, size, w, x, y, _i, _len, _ref, _results;
+    SelectionGrid.prototype.createGrid = function(showHelper) {
+      var datum, h, material, padding, parent, position, scene, selector, size, w, _i, _len, _ref;
+      if (showHelper == null) {
+        showHelper = true;
+      }
       if (this.data === void 0) {
         return;
       }
-      this.objects = [];
-      x = 0;
-      y = 0;
+      this.selectors = [];
       w = this.width;
       h = this.height;
       padding = this.padding || 2;
+      parent = this;
       _ref = this.data;
-      _results = [];
       for (_i = 0, _len = _ref.length; _i < _len; _i++) {
         datum = _ref[_i];
         size = {
           x: w,
-          y: w,
-          z: 0
+          y: 0,
+          z: w
         };
         position = {
           x: datum.x * (w + padding),
-          y: datum.y * (w + padding),
-          z: datum.z * (h + padding)
+          y: datum.y * (h + padding),
+          z: datum.z * (w + padding)
         };
         material = this.material;
         scene = this.stage.scene;
-        cube = new Selector({
+        selector = new Selector({
+          parent: parent,
           size: size,
           position: position,
           material: material
         }, scene);
-        this.objects.push(cube);
-        _results.push(this.stage.meshes.push(cube.mesh));
+        datum.selector = selector;
+        selector.datum = datum;
+        this.selectors.push(selector);
+        this.stage.meshes.push(selector.mesh);
       }
-      return _results;
+      return this.helper.grid.call(this, showHelper);
     };
 
     SelectionGrid.prototype.filterData = function(vec3) {
@@ -133,10 +136,13 @@
         Plain objects do allow undefined though, so you can pass in an object with all the values you want
         ie:   filterData({ x: 2});
       */
+
+      var results;
       if (!vec3) {
         return;
       }
-      return this.data.filter(function(el, i, arr) {
+      results = [];
+      results = results.concat(this.data.filter(function(el, i, arr) {
         if (el.x === vec3.x || vec3.x === "*" || vec3.x === void 0) {
           if (el.y === vec3.y || vec3.y === "*" || vec3.y === void 0) {
             if (el.z === vec3.z || vec3.z === "*" || vec3.z === void 0) {
@@ -144,12 +150,83 @@
             }
           }
         }
+      }));
+      return results;
+    };
+
+    SelectionGrid.prototype.getRange = function(vec3, steps) {
+      var count, getStepCount, results, x, _i, _len, _ref;
+      if (steps == null) {
+        steps = 4;
+      }
+      getStepCount = utils.steps;
+      results = [];
+      _ref = this.data;
+      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+        x = _ref[_i];
+        count = getStepCount(vec3, x);
+        if (count < steps + 1) {
+          results.push(x);
+        }
+      }
+      return results;
+    };
+
+    SelectionGrid.prototype.getRangeFromSelector = function(selector, steps) {
+      if (!(selector instanceof Selector)) {
+        return;
+      }
+      return this.getRange(selector.datum, steps);
+    };
+
+    SelectionGrid.prototype.displayRange = function(selector, steps, clearOtherRanges) {
+      var selectors;
+      if (clearOtherRanges == null) {
+        clearOtherRanges = true;
+      }
+      if (!(selector instanceof Selector)) {
+        return;
+      }
+      if (clearOtherRanges) {
+        this.clearAllRanges();
+      }
+      selectors = this.getRangeFromSelector(selector, steps);
+      return selectors.forEach(function(el) {
+        return el.selector.changeMaterialState.call(el.selector, "range", true);
       });
+    };
+
+    SelectionGrid.prototype.clearAllRanges = function() {
+      var type;
+      type = "default";
+      return this.selectors.forEach(function(el) {
+        return el.resetMaterial.call(el, type);
+      });
+    };
+
+    SelectionGrid.prototype.helper = {
+      grid: function(remove) {
+        var grid, padding, size, step, width;
+        if (remove == null) {
+          remove = false;
+        }
+        console.log(this);
+        padding = this.padding;
+        width = this.width;
+        size = ((width + padding) * this.x) / 2;
+        step = (size * 2) / (width + (padding / 2));
+        grid = new THREE.GridHelper(size, step);
+        this._helpergrid = grid;
+        grid.setColors("#224", "#224");
+        this.stage.scene.add(grid);
+        return grid;
+      },
+      range: function() {}
     };
 
     return SelectionGrid;
 
-  })();
+  })(utils.EventEmitter);
 
   Stage = (function(_super) {
 
@@ -229,22 +306,21 @@
     };
 
     Stage.prototype.setCameraToIsometric = function() {
-      var distanceFromCenterofGridToEdge, h, w, x, xDistance, y, yDistance, zDistance;
+      var distanceFromCenterofGridToEdge, h, w, x, xDistance, yDistance, z, zDistance;
       if (!this.grid) {
         return;
       }
       w = this.grid.width;
       h = this.grid.height;
       x = this.grid.x;
-      y = this.grid.y;
-      distanceFromCenterofGridToEdge = utils.pythag(w * x, h * y);
-      zDistance = distanceFromCenterofGridToEdge / 2;
-      yDistance = (w + (this.grid.padding || 2)) * x;
+      z = this.grid.z;
+      distanceFromCenterofGridToEdge = utils.pythag(w * x, h * z);
+      yDistance = distanceFromCenterofGridToEdge / 2;
+      zDistance = (w + (this.grid.padding || 2)) * z;
       xDistance = (w + (this.grid.padding || 2)) * x;
       this.camera.position.setZ(zDistance);
       this.camera.position.setY(yDistance);
       this.camera.position.setX(xDistance);
-      this.camera.up = new THREE.Vector3(0, 0, 1);
       this.camera.lookAt(new THREE.Vector3(0, 0, 0));
       return this;
       /*
