@@ -1,9 +1,9 @@
 {
 	"levelname" : "test",
 	"grid" : {
-		"width" : 20,
+		"width" : 30,
 		"padding": 2,
-		"length": 20,
+		"length": 30,
 		"x" : 21, 
 		"z" : 21,
 		"heightmap" : 0

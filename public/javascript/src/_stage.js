@@ -206,15 +206,16 @@
 
     SelectionGrid.prototype.helper = {
       grid: function(remove) {
-        var grid, padding, size, step, width;
+        var grid, height, padding, size, step, width;
         if (remove == null) {
           remove = false;
         }
         console.log(this);
         padding = this.padding;
         width = this.width;
+        height = this.height;
         size = ((width + padding) * this.x) / 2;
-        step = (size * 2) / (width + (padding / 2));
+        step = (width + height + (padding * 2)) / 2;
         grid = new THREE.GridHelper(size, step);
         this._helpergrid = grid;
         grid.setColors("#224", "#224");

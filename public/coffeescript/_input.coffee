@@ -182,7 +182,6 @@ module.exports.Interface = (canvas, parent, engine) ->
 
   return @
 
-
 module.exports.MouseDetection = (parent, engine, multiselect = false, clearAfterEmptySelection = false) ->
 
   enabled = false

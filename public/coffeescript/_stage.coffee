@@ -172,9 +172,10 @@ class SelectionGrid extends utils.EventEmitter
 
       padding = @padding
       width = @width
+      height = @height
 
       size = (( width + padding ) * @x) / 2
-      step =  (size * 2)  / ( width + (padding / 2))
+      step =  ((width + height + (padding * 2))) / 2
       grid = new THREE.GridHelper( size, step )
       @_helpergrid = grid
 
